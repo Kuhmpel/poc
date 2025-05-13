@@ -130,3 +130,15 @@ class MessagesView(APIView):
         messages = Message.objects.filter(user=request.user)
         serializer = MessageSerializer(messages, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+class AnonymousMessagesView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        session_id = request.query_params.get('session_id')
+        if not session_id:
+            return Response({'error': 'session_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        messages = Message.objects.filter(session_id=session_id)
+        serializer = MessageSerializer(messages, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

@@ -7,6 +7,13 @@ from django.utils import timezone
 from django.contrib.auth import authenticate
 from datetime import timedelta
 import logging
+from .profile_utils import store_zoning_context
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from django.db.models import Min, Max
+from chatbot.models import Message
+
 
 from .models import CustomUser, OTP
 from .serializers import UserSerializer
@@ -108,5 +115,63 @@ class VerifyOTPView(APIView):
         user.save()
         otp.is_used = True
         otp.save()
+        
+        try:
+            store_zoning_context(user)
+        except Exception as e:
+            print(f"Zoning info failed: {e}")
 
         return Response({'message': 'OTP verified successfully', 'person_id': user.id}, status=status.HTTP_200_OK)
+    
+class VerifiedInfoView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        profile = getattr(user, 'userprofile', None)
+
+        data = {
+            "username": user.username,
+            "email": user.email,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "is_verified": user.is_verified,
+            "address_line1": user.address_line1,
+            "address_line2": user.address_line2,
+            "city": user.city,
+            "state": user.state,
+            "zip_code": user.zip_code,
+            "zoning_context": profile.context if profile else None
+        }
+
+        return Response(data, status=status.HTTP_200_OK)
+    
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def conversation_history(request):
+    user = request.user
+
+    conversations = (
+        Message.objects
+        .filter(user=user)
+        .values('session_id')
+        .annotate(
+            started_at=Min('id'),  # or use created_at if you add a timestamp
+            last_message_id=Max('id')
+        )
+        .order_by('-last_message_id')
+    )
+
+    # You can enhance this with better timestamps if available
+    response = [
+        {
+            'session_id': c['session_id'],
+            'started_at_id': c['started_at'],
+            'last_message_id': c['last_message_id'],
+            'title': f"Conversation {i + 1}"
+        }
+        for i, c in enumerate(conversations)
+    ]
+
+    return Response(response)

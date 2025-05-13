@@ -44,6 +44,23 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 class UserProfile(models.Model):
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
     context = models.JSONField(default=dict)
+    
+    zoning_abbr = models.CharField(max_length=20, blank=True, null=True)
+    zoning_name = models.CharField(max_length=100, blank=True, null=True)
+    jurisdiction = models.CharField(max_length=100, blank=True, null=True)
+
+    min_lot_acres = models.FloatField(null=True, blank=True)
+    min_parking_spaces = models.IntegerField(null=True, blank=True)
+    max_height_ft = models.IntegerField(null=True, blank=True)
+    front_setback_ft = models.IntegerField(null=True, blank=True)
+    rear_setback_ft = models.IntegerField(null=True, blank=True)
+    side_setback_ft = models.IntegerField(null=True, blank=True)
+
+    # Address & location
+    address_entered = models.CharField(max_length=255, blank=True, null=True)
+    address_geocoded = models.CharField(max_length=255, blank=True, null=True)
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
 
     def __str__(self):
         return f"Profile for {self.user.username}"

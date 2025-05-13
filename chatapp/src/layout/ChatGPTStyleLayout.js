@@ -2,9 +2,11 @@ import React, { useState, useContext, useEffect } from 'react';
 import ChatWindow from '../components/ChatWindow';
 import Register from '../components/Register';
 import Login from '../components/Login';
-import RequestVerification from '../components/RequestVerification'; // ✅ Import new component
-import { AuthContext } from '../context/AuthContext';
+import RequestVerification from '../components/RequestVerification';
 import VerifyOTP from '../components/VerifyOTP';
+import VerifiedInfoPanel from '../components/VerifiedInfoPanel';
+import { AuthContext } from '../context/AuthContext';
+import ConversationHistory from '../components/ConversationHistory'; // Import the conversation history component
 import '../App.css';
 
 const ChatGPTStyleLayout = () => {
@@ -25,18 +27,12 @@ const ChatGPTStyleLayout = () => {
           {!token && (
             <>
               <li>
-                <button
-                  className="menu-item"
-                  onClick={() => setActiveTab('register')}
-                >
+                <button className="menu-item" onClick={() => setActiveTab('register')}>
                   Register
                 </button>
               </li>
               <li>
-                <button
-                  className="menu-item"
-                  onClick={() => setActiveTab('login')}
-                >
+                <button className="menu-item" onClick={() => setActiveTab('login')}>
                   Login
                 </button>
               </li>
@@ -46,19 +42,18 @@ const ChatGPTStyleLayout = () => {
           {token && (
             <>
               <li>
-                <button
-                  className="menu-item"
-                  onClick={() => setActiveTab('request-verification')}
-                >
+                <button className="menu-item" onClick={() => setActiveTab('request-verification')}>
                   Request Verification
                 </button>
               </li>
               <li>
-                <button
-                className="menu-item"
-                onClick={() => setActiveTab('verify-otp')}
-              >
-                Verify OTP
+                <button className="menu-item" onClick={() => setActiveTab('verify-otp')}>
+                  Verify OTP
+                </button>
+              </li>
+              <li>
+                <button className="menu-item" onClick={() => setActiveTab('verified-info')}>
+                  View Verified Info
                 </button>
               </li>
               <li>
@@ -83,8 +78,8 @@ const ChatGPTStyleLayout = () => {
               ? `${user.first_name} ${user.last_name || ''}`
               : user.username || user.email || 'User'}
             !
-        </p>
-      )}
+          </p>
+        )}
 
         {/* Side-panel content logic */}
         {!token && activeTab === 'register' && (
@@ -103,8 +98,20 @@ const ChatGPTStyleLayout = () => {
           </div>
         )}
         {token && activeTab === 'verify-otp' && (
-           <div className="side-panel-content">
-          <VerifyOTP onClose={() => setActiveTab('chat')} />
+          <div className="side-panel-content">
+            <VerifyOTP onClose={() => setActiveTab('chat')} />
+          </div>
+        )}
+        {token && activeTab === 'verified-info' && (
+          <div className="side-panel-content">
+            <VerifiedInfoPanel />
+          </div>
+        )}
+
+        {/* Conversation History Section */}
+        {token && (
+          <div className="side-panel-content">
+            <ConversationHistory />
           </div>
         )}
       </aside>
