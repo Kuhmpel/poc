@@ -22,13 +22,17 @@ const Register = () => {
         const loginResponse = await API.post('accounts/login/', { username, password });
         const { access } = loginResponse.data;
         login(access);
-        setMessage('Registration successful! Logging you in...');
+        setMessage(
+          '✅ Registration successful! You’ve been automatically logged in and can now start using all features.'
+        );
       }
     } catch (error) {
       if (error.response) {
-        setMessage(error.response.data.error || 'Registration failed.');
+        setMessage(
+          `❌ ${error.response.data.error || 'Registration failed. Please check your input.'}`
+        );
       } else {
-        setMessage('An error occurred. Please try again.');
+        setMessage('❌ An error occurred. Please try again.');
       }
     } finally {
       setIsLoading(false);

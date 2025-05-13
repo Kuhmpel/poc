@@ -1,12 +1,13 @@
 import React from 'react';
 import { AuthProvider } from './context/AuthContext';  // Make sure the path is correct
-import ChatGPTStyleLayout from './layout/ChatGPTStyleLayout';  // Your existing layout component
+import './App.css';
+import ChatGPTStyleLayout from './layout/ChatGPTStyleLayout';
 
 function App() {
   return (
     <AuthProvider>
       <div className="App">
-        <ChatGPTStyleLayout />
+        <ChatGPTStyleLayout></ChatGPTStyleLayout>
       </div>
     </AuthProvider>
   );

@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
-import '../App.css';
 
 // UUID generator
 const generateUUID = () => {
-  return crypto.randomUUID?.() || ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
-    (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
-  );
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = (crypto.getRandomValues(new Uint8Array(1))[0] % 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 };
 
 const ChatWindow = ({ addToHistory = () => {} }) => {
@@ -45,6 +46,12 @@ const ChatWindow = ({ addToHistory = () => {} }) => {
     addToHistory(currentMessage);
     setCurrentMessage('');
 
+    // Add a thinking bubble
+    setMessages((prevMessages) => [
+      ...prevMessages,
+      { bot: '...', isThinking: true },
+    ]);
+
     try {
       const token = localStorage.getItem('token');
       const headers = {
@@ -70,12 +77,20 @@ const ChatWindow = ({ addToHistory = () => {} }) => {
             categories: data.categories,
             sentiment: data.question_sentiment?.label,
             emotion: data.question_emotion?.label,
+            isThinking: false, // End thinking state
           }
-        : { bot: `Error: ${data.error || 'Unknown error'}` };
+        : { bot: `Error: ${data.error || 'Unknown error'}`, isThinking: false };
 
-      setMessages([...newMessages, botReply]);
+      // Replace thinking bubble with actual bot response
+      setMessages((prevMessages) => [
+        ...prevMessages.slice(0, -1),
+        botReply,
+      ]);
     } catch (error) {
-      setMessages([...newMessages, { bot: `Request failed: ${error.message}` }]);
+      setMessages((prevMessages) => [
+        ...prevMessages.slice(0, -1),
+        { bot: `Request failed: ${error.message}`, isThinking: false },
+      ]);
     }
   };
 
@@ -95,7 +110,7 @@ const ChatWindow = ({ addToHistory = () => {} }) => {
               {msg.user && <div>{msg.user}</div>}
               {msg.bot && (
                 <>
-                  <div>{msg.bot}</div>
+                  <div>{msg.isThinking ? '...' : msg.bot}</div>
 
                   {msg.insight && (
                     <div className="chat-insight">
