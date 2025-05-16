@@ -1,15 +1,6 @@
 import axios from "axios";
 import { IConversation } from "../types/conversation";
 
-const password = "your-password";
-const config = {
-  headers: {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${password}`,
-  },
-};
-
-
 // Use localhost during local development
 const API = axios.create({
   baseURL: "http://localhost:8000/api/",
@@ -18,23 +9,39 @@ const API = axios.create({
 // --- Token Handling ---
 
 /**
- * Store the token in local storage
+ * Store the tokens in local storage
  *
- * @param token - The token to store
+ * @param tokens - The tokens to store
  */
-export const setTokenInLocalStorage = (token: string) => {
-  localStorage.setItem("token", token);
+export const setTokenInLocalStorage = (tokens: { access: string; refresh: string }) => {
+  localStorage.setItem("access_token", tokens.access);
+  localStorage.setItem("refresh_token", tokens.refresh);
 };
 
 /**
- * Retrieve the token from local storage
+ * Retrieve the access token from local storage
  */
 export const getTokenFromLocalStorage = (): string | null => {
-  return localStorage.getItem("token");
+  return localStorage.getItem("access_token");
 };
 
 /**
- * Clear the token from local storage
+ * Retrieve the refresh token from local storage
+ */
+export const getRefreshTokenFromLocalStorage = (): string | null => {
+  return localStorage.getItem("refresh_token");
+};
+
+/**
+ * Clear the tokens from local storage
+ */
+export const clearTokenFromLocalStorage = () => {
+  localStorage.removeItem("access_token");
+  localStorage.removeItem("refresh_token");
+};
+
+/**
+ * Check if user is authenticated (i.e., has an access token)
  */
 export const isAuthenticated = (): boolean => {
   return !!getTokenFromLocalStorage();
@@ -91,19 +98,83 @@ export const signupUser = async (
   const resp = await API.post("accounts/register/", { username, password });
   return resp.data;
 };
+
 /**
  * Log in a user
  *
  * @param email The user's email
  * @param password The user's password
+ * @returns { access: string, refresh: string }
  */
 export const loginUser = async (
   email: string,
   password: string,
-): Promise<string> => {
+): Promise<{ access: string; refresh: string }> => {
   const username = email; // Send email as username
   const resp = await API.post("accounts/login/", { username, password });
-  return resp.data.token;
+  return { access: resp.data.access, refresh: resp.data.refresh };
+};
+
+/**
+ * Refresh the access token using the refresh token.
+ *
+ * @returns { access: string }
+ */
+export const refreshAccessToken = async (): Promise<{ access: string }> => {
+  const refresh = getRefreshTokenFromLocalStorage();
+  if (!refresh) throw new Error("No refresh token available");
+  const resp = await API.post("accounts/token/refresh/", { refresh });
+  // Optionally update the token in localStorage here
+  if (resp.data.access) {
+    localStorage.setItem("access_token", resp.data.access);
+  }
+  return { access: resp.data.access };
+};
+
+/**
+ * Validate the user's authentication token with retries.
+ * Calls the backend `/api/auth/validate-token` to check if the token is still valid.
+ *
+ * @param retries - Number of retry attempts (default: 3).
+ * @returns `true` if the token is valid, `false` otherwise.
+ */
+export const validateToken = async (retries: number = 3): Promise<boolean> => {
+  const token = getTokenFromLocalStorage();
+
+  if (!token) return false; // Immediately exit if no token
+
+  const delay = (ms: number) =>
+    new Promise((resolve) => setTimeout(resolve, ms));
+
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const res = await API.get("/auth/validate-token", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res.status === 200 && res.data.valid) {
+        return true; // Token is valid, no need to retry
+      }
+
+      console.warn(
+        `Token validation failed (Attempt ${attempt}/${retries}):`,
+        res.data,
+      );
+    } catch (error: any) {
+      console.error(
+        `Error validating token (Attempt ${attempt}/${retries}):`,
+        error.message,
+      );
+    }
+
+    // Wait before retrying (only if not last attempt)
+    if (attempt < retries) await delay(200 * attempt);
+  }
+
+  // If all retries failed, remove the token
+  console.warn("All token validation attempts failed. Removing token.");
+  clearTokenFromLocalStorage();
+  return false;
 };
 
 // --- Conversation Endpoints (for authenticated usage) ---
@@ -216,14 +287,15 @@ export const deleteConversation = async (id: string): Promise<void> => {
  */
 export const sendAuthedChatMessage = async (
   message: string,
-  conversationId: string | null,
+  session_id?: string
 ) => {
-  const resp = await API.post("chatbot/chat/", {
-    message,
-    conversationId,
-  });
-  return resp.data; // { answer, conversationId }
+  const payload: any = { message };
+  if (session_id) payload.session_id = session_id;
+  const resp = await API.post("chatbot/chat/", payload);
+  return resp.data;
 };
+
+
 
 /**
  * Guest user chat (unauth):
@@ -244,51 +316,3 @@ export const sendGuestChatMessage = async (
   const resp = await API.post("chatbot/chat/", payload);
   return resp.data; // { answer, guestId }
 };
-
-/**
- * Validates the user's authentication token with retries.
- * Calls the backend `/api/auth/validate-token` to check if the token is still valid.
- *
- * @param retries - Number of retry attempts (default: 3).
- * @returns `true` if the token is valid, `false` otherwise.
- */
-export const validateToken = async (retries: number = 3): Promise<boolean> => {
-  const token = getTokenFromLocalStorage();
-
-  if (!token) return false; // Immediately exit if no token
-
-  const delay = (ms: number) =>
-    new Promise((resolve) => setTimeout(resolve, ms));
-
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      const res = await API.get("/auth/validate-token", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (res.status === 200 && res.data.valid) {
-        return true; // Token is valid, no need to retry
-      }
-
-      console.warn(
-        `Token validation failed (Attempt ${attempt}/${retries}):`,
-        res.data,
-      );
-    } catch (error: any) {
-      console.error(
-        `Error validating token (Attempt ${attempt}/${retries}):`,
-        error.message,
-      );
-    }
-
-    // Wait before retrying (only if not last attempt)
-    if (attempt < retries) await delay(200 * attempt);
-  }
-
-  // If all retries failed, remove the token
-  console.warn("All token validation attempts failed. Removing token.");
-  localStorage.removeItem("token");
-  return false;
-};
-
-const email = "example@email.com"; // Declare the variable

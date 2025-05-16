@@ -37,8 +37,9 @@ const LoginModal: React.FC<LoginModalProps> = ({
   const handleLogin = async () => {
     setLoadingLogin(true);
     try {
-      const token = await loginUser(email, password);
-      setTokenInLocalStorage(token);
+      // PATCH: loginUser now returns both tokens
+      const tokens = await loginUser(email, password);
+      setTokenInLocalStorage(tokens);
       navigate("/chat");
       onClose();
     } catch (err: any) {

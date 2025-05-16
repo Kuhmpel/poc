@@ -28,6 +28,7 @@ import {
   searchConversations,
   isAuthenticated,
   validateToken,
+  clearTokenFromLocalStorage,
 } from "../services/api";
 import { IConversation } from "../types/conversation";
 
@@ -64,7 +65,8 @@ const Navbar: React.FC<NavbarProps> = ({
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    // Always check for access_token (not token)
+    const token = localStorage.getItem("access_token");
     if (!token) {
       setIsTokenValid(false);
       return;
@@ -137,7 +139,8 @@ const Navbar: React.FC<NavbarProps> = ({
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
+    clearTokenFromLocalStorage();
+    setIsTokenValid(false);
     navigate("/login");
   };
 
